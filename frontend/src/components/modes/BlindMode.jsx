@@ -15,7 +15,7 @@ const LESSON_CONTENT = [
 const BlindMode = () => {
     const { switchMode } = useMode();
     // TASK 5B.1: Voice Input Engine
-    const { transcript, isListening, startListening, stopListening, hasSupport } = useSpeechRecognition();
+    const { transcript, resetTranscript, isListening, startListening, stopListening, hasSupport } = useSpeechRecognition();
 
     // Content State
     const [currentSection, setCurrentSection] = useState(0);
@@ -31,96 +31,119 @@ const BlindMode = () => {
             synth.current.cancel();
         }
         setIsPlaying(false);
-    }, []);
+        // If we stop manually, ensure we are listening
+        startListening(true);
+    }, [startListening]);
+
+    // AUDIO ENGINE REFACTOR: Turn-Taking Architecture
+    // 1. System Speaks (Mic OFF)
+    // 2. System Finishes Speaking (Mic ON)
+    // 3. User Speaks (Mic Active)
+    // 4. System Processes (Mic OFF)
 
     const speak = useCallback((text) => {
+        // Stop listening while speaking to prevent self-hearing and browser conflicts
+        stopListening();
+        setIsPlaying(true);
+
+        // Cancel any current speech
         if (synth.current.speaking) {
             synth.current.cancel();
         }
-        setIsPlaying(true);
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9; // Calm, medium speed
+        utterance.rate = 1.0;
         utterance.pitch = 1.0;
 
-        utterance.onend = () => setIsPlaying(false);
+        utterance.onend = () => {
+            setIsPlaying(false);
+            // TURN MIC BACK ON
+            console.log("Speech finished, listening for command...");
+            startListening(true);
+        };
 
         speechUtterance.current = utterance;
         synth.current.speak(utterance);
-    }, []);
+    }, [stopListening, startListening]);
 
     // TASK 5B.0: Mode Isolation - Ensure clean start
     useEffect(() => {
         console.log("Blind Mode Activated");
 
-        // Auto-read title (Task 5B.3 & 5B.5)
-        // Delay slightly to ensure load
+        // Start the cycle with the intro
+        // "Speak" will auto-trigger "Listen" when done.
         const timer = setTimeout(() => {
-            speak("Blind mode activated. Say Read to begin. " + LESSON_CONTENT[0].text);
+            speak("Blind mode activated. I am listening. Say Next, Back, or Read.");
         }, 500);
 
         return () => {
             console.log("Blind Mode Deactivated: Cleanup");
-            stopSpeaking();
-            stopListening(); // Ensure specific listener is off
+            if (synth.current) synth.current.cancel();
+            stopListening();
             clearTimeout(timer);
         };
-    }, [speak, stopSpeaking, stopListening]);
+    }, []); // Empty dependency array to run once on mount
 
 
     // TASK 5B.2: Command Parser (Deterministic)
     useEffect(() => {
         if (!transcript) return;
 
-        const commandParts = transcript.trim().toUpperCase().split(" ");
-        const command = commandParts[commandParts.length - 1]; // Take last word
+        const cmd = transcript.trim().toUpperCase();
+        console.log("Transcript Received:", cmd);
 
-        console.log("Parsed Command:", command);
+        // We look for keywords anywhere in the string to be more robust
+        let commandAction = null;
 
-        // Simple State Machine
-        switch (command) {
-            case "READ":
-            case "REPEAT":
-            case "AGAIN":
-                setLastCommand("READ");
-                speak("Reading current section. " + LESSON_CONTENT[currentSection].text);
-                break;
-            case "NEXT":
-            case "FORWARD":
-                setLastCommand("NEXT");
-                if (currentSection < LESSON_CONTENT.length - 1) {
-                    setCurrentSection(prev => {
-                        const next = prev + 1;
-                        speak("Moving to next section. " + LESSON_CONTENT[next].text);
-                        return next;
-                    });
-                } else {
-                    speak("No more sections. You are at the end of the lesson.");
-                }
-                break;
-            case "BACK":
-            case "PREVIOUS":
-                setLastCommand("BACK");
-                if (currentSection > 0) {
-                    setCurrentSection(prev => {
-                        const next = prev - 1;
-                        speak("Moving back. " + LESSON_CONTENT[next].text);
-                        return next;
-                    });
-                } else {
-                    speak("Boundary reached. You are at the start of the lesson.");
-                }
-                break;
-            case "STOP":
-            case "QUIET":
-            case "SILENCE":
-                setLastCommand("STOP");
-                stopSpeaking();
-                break;
-            default:
-                break;
+        if (cmd.includes("NEXT") || cmd.includes("FORWARD") || cmd.includes("GO")) commandAction = "NEXT";
+        else if (cmd.includes("BACK") || cmd.includes("PREVIOUS")) commandAction = "BACK";
+        else if (cmd.includes("READ") || cmd.includes("REPEAT") || cmd.includes("AGAIN")) commandAction = "READ";
+        else if (cmd.includes("STOP") || cmd.includes("QUIET")) commandAction = "STOP";
+
+        if (commandAction) {
+            console.log("Parsed Command:", commandAction);
+            // RESET TRANSCRIPT IMMEDIATELY so we can detect the same command again
+            transcript.includes(commandAction) && resetTranscript();
+
+            // Simple State Machine
+            switch (commandAction) {
+                case "READ":
+                    setLastCommand("READ");
+                    speak("Reading current section. " + LESSON_CONTENT[currentSection].text);
+                    break;
+                case "NEXT":
+                    setLastCommand("NEXT");
+                    if (currentSection < LESSON_CONTENT.length - 1) {
+                        setCurrentSection(prev => {
+                            const next = prev + 1;
+                            speak("Moving to next section. " + LESSON_CONTENT[next].text);
+                            return next;
+                        });
+                    } else {
+                        speak("No more sections. You are at the end of the lesson.");
+                    }
+                    break;
+                case "BACK":
+                    setLastCommand("BACK");
+                    if (currentSection > 0) {
+                        setCurrentSection(prev => {
+                            const next = prev - 1;
+                            speak("Moving back. " + LESSON_CONTENT[next].text);
+                            return next;
+                        });
+                    } else {
+                        speak("Boundary reached. You are at the start of the lesson.");
+                    }
+                    break;
+                case "STOP":
+                    setLastCommand("STOP");
+                    stopSpeaking();
+                    break;
+                default:
+                    break;
+            }
         }
-    }, [transcript, currentSection, speak, stopSpeaking]);
+    }, [transcript, currentSection, speak, stopSpeaking, resetTranscript]);
 
 
     return (
@@ -169,7 +192,7 @@ const BlindMode = () => {
             </main>
 
             {/* Footer Controls (Large Touch Targets for Mouse Backup) */}
-            <footer className="grid grid-cols-4 gap-4 mt-8">
+            <footer className="grid grid-cols-2 gap-4 mt-8">
                 <button
                     onClick={() => {
                         const prev = Math.max(0, currentSection - 1);
@@ -182,15 +205,6 @@ const BlindMode = () => {
                 >
                     <SkipBack size={32} />
                     <span className="mt-2 font-bold">BACK</span>
-                </button>
-
-                <button
-                    onClick={isListening ? stopListening : startListening}
-                    className={`col-span-2 h-24 rounded-xl flex flex-col items-center justify-center transition border-4 ${isListening ? 'bg-red-900 border-red-500' : 'bg-blue-900 border-blue-500'}`}
-                    aria-label={isListening ? "Stop Listening" : "Start Voice Control"}
-                >
-                    {isListening ? <MicOff size={32} /> : <Mic size={32} />}
-                    <span className="mt-2 font-bold text-xl">{isListening ? "STOP LISTENING" : "START VOICE CONTROL"}</span>
                 </button>
 
                 <button

@@ -31,6 +31,7 @@ const MOCK_ORACLE = [
 ];
 
 const API_URL = "http://localhost:5000/api/translate";
+const DEMO_MODE = true; // Set to true to avoid network errors during frontend-only development
 
 export const reconstructSentence = async (tokens) => {
     // Simulate network latency (visible UI feedback)
@@ -42,6 +43,11 @@ export const reconstructSentence = async (tokens) => {
 
     // Extract raw string tokens
     const rawTokens = tokens.map(t => t.token);
+
+    if (DEMO_MODE) {
+        console.log("Demo Mode: Skipping Backend API, using Mock Oracle");
+        return getMockResponse(rawTokens);
+    }
 
     try {
         console.log("Calling Backend API with:", rawTokens);
@@ -63,25 +69,28 @@ export const reconstructSentence = async (tokens) => {
 
     } catch (error) {
         console.warn("Backend API Failed, using Mock Fallback:", error.message);
-        // FALLBACK TO MOCK ORACLE
-
-        // 1. Exact Match Search
-        const exactMatch = MOCK_ORACLE.find(entry =>
-            JSON.stringify(entry.pattern) === JSON.stringify(rawTokens)
-        );
-        if (exactMatch) return exactMatch.response + " (Offline Mode)";
-
-        // 2. Subset/Keyword Match (Heuristic Fallback)
-        if (rawTokens.includes("WATER") && (rawTokens.includes("ME") || rawTokens.includes("WANT"))) {
-            return "Excuse me, I would like some water. (Offline Mode)";
-        }
-        if (rawTokens.includes("HELP")) {
-            return "I need some help please. (Offline Mode)";
-        }
-        if (rawTokens.includes("HELLO")) {
-            return "Hello there! (Offline Mode)";
-        }
-
-        return `(Literal Translation - Offline): ${rawTokens.join(" ")}`;
+        return getMockResponse(rawTokens);
     }
+};
+
+// Helper for Mock Logic
+const getMockResponse = (rawTokens) => {
+    // 1. Exact Match Search
+    const exactMatch = MOCK_ORACLE.find(entry =>
+        JSON.stringify(entry.pattern) === JSON.stringify(rawTokens)
+    );
+    if (exactMatch) return exactMatch.response + " (Offline Mode)";
+
+    // 2. Subset/Keyword Match (Heuristic Fallback)
+    if (rawTokens.includes("WATER") && (rawTokens.includes("ME") || rawTokens.includes("WANT"))) {
+        return "Excuse me, I would like some water. (Offline Mode)";
+    }
+    if (rawTokens.includes("HELP")) {
+        return "I need some help please. (Offline Mode)";
+    }
+    if (rawTokens.includes("HELLO")) {
+        return "Hello there! (Offline Mode)";
+    }
+
+    return `(Literal Translation - Offline): ${rawTokens.join(" ")}`;
 };
