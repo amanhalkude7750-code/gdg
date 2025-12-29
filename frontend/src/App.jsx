@@ -7,16 +7,18 @@ import BlindMode from './components/modes/BlindMode';
 import MotorMode from './components/modes/MotorMode';
 import DeafLearnMode from './components/modes/DeafLearnMode';
 
-function App() {
-  const { activeMode } = useMode();
+import { Routes, Route } from 'react-router-dom';
 
+function App() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      {activeMode === MODES.HOME && <HomeMode />}
-      {activeMode === MODES.DEAF && <DeafMode />}
-      {activeMode === MODES.DEAF_LEARN && <DeafLearnMode />}
-      {activeMode === MODES.BLIND && <BlindMode />}
-      {activeMode === MODES.MOTOR && <MotorMode />}
+      <Routes>
+        <Route path="/" element={<HomeMode />} />
+        <Route path="/deaf" element={<DeafMode />} />
+        <Route path="/deaf/learn" element={<DeafLearnMode />} />
+        <Route path="/blind" element={<BlindMode />} />
+        <Route path="/motor" element={<MotorMode />} />
+      </Routes>
     </div>
   );
 }

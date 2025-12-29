@@ -5,11 +5,15 @@ import App from './App.jsx'
 import { ModeProvider } from './context/ModeContext.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
+import { BrowserRouter } from 'react-router-dom'
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ModeProvider>
-        <App />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
       </ModeProvider>
     </ErrorBoundary>
   </React.StrictMode>

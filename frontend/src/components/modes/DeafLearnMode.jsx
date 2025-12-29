@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import { useMode } from '../../context/ModeContext';
-import { MODES } from '../../constants/modes';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, HelpCircle, Trophy, Sparkles } from 'lucide-react';
 import { useHandSignRecognition } from '../../hooks/useHandSignRecognition';
 
@@ -22,7 +21,6 @@ const CURRICULUM = [
 ];
 
 const DeafLearnMode = () => {
-    const { switchMode } = useMode();
     const webcamRef = useRef(null);
     const { tokens, isModelLoading, startDetection } = useHandSignRecognition(webcamRef);
 
@@ -72,12 +70,12 @@ const DeafLearnMode = () => {
         <div className="min-h-screen bg-gray-900 text-white p-4 font-sans flex flex-col">
             {/* Header */}
             <header className="flex items-center justify-between mb-6">
-                <button
-                    onClick={() => switchMode(MODES.HOME)}
+                <Link
+                    to="/deaf"
                     className="p-2 hover:bg-gray-800 rounded-full transition"
                 >
                     <ArrowLeft className="text-gray-400" />
-                </button>
+                </Link>
                 <div className="flex flex-col items-center">
                     <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Sign School

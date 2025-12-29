@@ -1,12 +1,21 @@
 import React from 'react';
-import { useMode } from '../../context/ModeContext';
+import { useNavigate } from 'react-router-dom'; // Changed from useMode
 import { MODES } from '../../constants/modes';
 import { Ear, Eye, Activity, ArrowRight, Zap, Shield, Heart } from 'lucide-react';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 
 const HomeMode = () => {
-    const { switchMode } = useMode();
+    const navigate = useNavigate(); // Replaces switchMode
     const { transcript, isListening, startListening, stopListening, hasSupport } = useSpeechRecognition();
+
+    const goToMode = React.useCallback((mode) => {
+        switch (mode) {
+            case MODES.DEAF: navigate('/deaf'); break;
+            case MODES.BLIND: navigate('/blind'); break;
+            case MODES.MOTOR: navigate('/motor'); break;
+            default: navigate('/');
+        }
+    }, [navigate]);
 
     // AUDIO & KEYBOARD & VOICE ENTRY LOGIC
     React.useEffect(() => {
@@ -38,19 +47,19 @@ const HomeMode = () => {
                 case 'Enter':
                     e.preventDefault();
                     speak("Starting Blind Mode.");
-                    switchMode(MODES.BLIND);
+                    goToMode(MODES.BLIND);
                     break;
                 case '1':
                 case 'd': // Fallback shorthand
                 case 'D':
                     speak("Starting Sign Language Mode.");
-                    switchMode(MODES.DEAF);
+                    goToMode(MODES.DEAF);
                     break;
                 case '2':
                 case 'm':
                 case 'M':
                     speak("Starting Motor Control.");
-                    switchMode(MODES.MOTOR);
+                    goToMode(MODES.MOTOR);
                     break;
                 default:
                     break;
@@ -65,7 +74,7 @@ const HomeMode = () => {
             window.removeEventListener('click', handleInteraction);
             stopListening(); // Important: Stop the continuous loop on unmount
         };
-    }, [switchMode, startListening, stopListening]);
+    }, [goToMode, startListening, stopListening]);
 
     // VOICE COMMAND PARSER (ALEXA STYLE)
     React.useEffect(() => {
@@ -81,10 +90,10 @@ const HomeMode = () => {
             stopListening(); // Stop listening so we don't hear ourself
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(msg);
-                utterance.onend = () => switchMode(mode);
+                utterance.onend = () => goToMode(mode);
                 window.speechSynthesis.speak(utterance);
             } else {
-                switchMode(mode);
+                goToMode(mode);
             }
         };
 
@@ -100,11 +109,11 @@ const HomeMode = () => {
             console.log("Command Recognized: MOTOR");
             speakAndSwitch("Sure. Initializing Head Tracking Interface.", MODES.MOTOR);
         }
-    }, [transcript, switchMode, stopListening]);
+    }, [transcript, goToMode, stopListening]);
 
     const ModeCard = ({ mode, title, subtitle, icon: Icon, colorClass, delay }) => (
         <button
-            onClick={() => switchMode(mode)}
+            onClick={() => goToMode(mode)}
             className={`
                 group relative overflow-hidden rounded-3xl p-8 text-left transition-all duration-500 hover:scale-105
                 bg-white/5 backdrop-blur-lg border border-white/10 hover:border-white/20 hover:shadow-2xl

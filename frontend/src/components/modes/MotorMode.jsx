@@ -1,13 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Webcam from 'react-webcam';
-import { useMode } from '../../context/ModeContext';
-import { MODES } from '../../constants/modes';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, Crosshair, Move } from 'lucide-react';
 import { useHeadTracking } from '../../hooks/useHeadTracking';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 
 const MotorMode = () => {
-    const { switchMode } = useMode();
     const { cursor, isTracking, setIsTracking, gesture } = useHeadTracking();
     const { transcript, isListening, startListening, stopListening } = useSpeechRecognition();
     const webcamRef = useRef(null);
@@ -167,13 +165,13 @@ const MotorMode = () => {
 
             {/* Header */}
             <header className="fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-50 bg-gray-950/80 backdrop-blur border-b border-cyan-900/50">
-                <button
-                    onClick={() => switchMode(MODES.HOME)}
+                <Link
+                    to="/"
                     className="flex items-center gap-2 text-cyan-500 hover:text-cyan-300 transition"
                 >
                     <ArrowLeft size={24} />
                     <span className="uppercase tracking-widest text-sm font-bold">Abort / Back</span>
-                </button>
+                </Link>
                 <h1 className="text-2xl font-black uppercase tracking-widest flex items-center gap-2">
                     <Move className="animate-pulse" />
                     Pilot Interface
