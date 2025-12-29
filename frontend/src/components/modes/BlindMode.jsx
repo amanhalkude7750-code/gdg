@@ -1,10 +1,78 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-// other imports
-// ...
+import { ArrowLeft, Volume2, Mic, SkipBack, SkipForward } from 'lucide-react';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+
+const LESSON_CONTENT = [
+    { id: 1, text: "Welcome to Voice Navigator. I am your guide. Say 'Next' to continue." },
+    { id: 2, text: "Great. You can navigate this application entirely by voice." },
+    { id: 3, text: "Say 'Back' to repeat the previous instruction." },
+    { id: 4, text: "You can also access specialized modes for different needs." },
+    { id: 5, text: "This concludes the tutorial. Happy navigating!" }
+];
 
 const BlindMode = () => {
-    // const { switchMode } = useMode(); // Removed
-    // ...
+    const [currentSection, setCurrentSection] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [lastCommand, setLastCommand] = useState(null);
+
+    // Voice Recognition Hook
+    const {
+        isListening,
+        transcript,
+        resetTranscript,
+        startListening
+    } = useSpeechRecognition();
+
+    // Initialize voice on mount
+    useEffect(() => {
+        startListening(true); // Continuous listening
+        // Speak the first lesson on mount
+        setTimeout(() => speak(LESSON_CONTENT[0].text), 1000);
+    }, [startListening]);
+
+    // Handle Voice Commands
+    useEffect(() => {
+        if (!transcript) return;
+
+        const command = transcript.toLowerCase();
+
+        if (command.includes('next') || command.includes('continue') || command.includes('go')) {
+            handleNavigation('NEXT');
+        } else if (command.includes('back') || command.includes('previous')) {
+            handleNavigation('BACK');
+        } else if (command.includes('replay') || command.includes('repeat')) {
+            speak(LESSON_CONTENT[currentSection].text);
+            resetTranscript();
+        }
+    }, [transcript, currentSection]);
+
+    const handleNavigation = (direction) => {
+        let nextSection = currentSection;
+
+        if (direction === 'NEXT') {
+            nextSection = Math.min(LESSON_CONTENT.length - 1, currentSection + 1);
+        } else if (direction === 'BACK') {
+            nextSection = Math.max(0, currentSection - 1);
+        }
+
+        if (nextSection !== currentSection) {
+            setLastCommand(direction);
+            setCurrentSection(nextSection);
+            speak(LESSON_CONTENT[nextSection].text);
+            resetTranscript();
+        }
+    };
+
+    const speak = (text) => {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel(); // Stop previous
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.onstart = () => setIsPlaying(true);
+            utterance.onend = () => setIsPlaying(false);
+            window.speechSynthesis.speak(utterance);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-black text-yellow-400 p-8 flex flex-col font-mono">
