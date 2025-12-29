@@ -9,13 +9,14 @@ import { reconstructSentence } from '../../services/TranslationService';
 
 const DeafMode = () => {
     const { switchMode } = useMode();
-    const { tokens, addToken, clearTokens } = useHandSignRecognition();
+    const webcamRef = useRef(null); // Define ref before using it
+    const { tokens, addToken, clearTokens, isModelLoading, startDetection } = useHandSignRecognition(webcamRef);
     const { transcript, isListening, startListening, stopListening, hasSupport: hasSTT } = useSpeechRecognition();
 
     const [predictedSentence, setPredictedSentence] = useState("");
     const [isTranslating, setIsTranslating] = useState(false);
     const [translationError, setTranslationError] = useState(null);
-    const webcamRef = useRef(null);
+    // webcamRef moved up
 
     useEffect(() => {
         console.log("Deaf Mode Activated");
@@ -77,7 +78,15 @@ const DeafMode = () => {
                     <h1 className="text-xl lg:text-2xl font-bold text-blue-400">Deaf-Mute Translation</h1>
                     <span className="text-xs text-blue-500/60 uppercase tracking-widest">Two-Way Communication</span>
                 </div>
-                <div className="w-20"></div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => switchMode(MODES.DEAF_LEARN)}
+                        className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-2"
+                    >
+                        <span>🎓 Learn Signs</span>
+                    </button>
+                    <div className="w-4"></div>
+                </div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full flex-1">
@@ -92,10 +101,22 @@ const DeafMode = () => {
                                 ref={webcamRef}
                                 className="absolute inset-0 w-full h-full object-cover opacity-80"
                                 mirrored={true}
+                                onUserMedia={() => startDetection()}
                             />
-                            <div className="absolute top-4 left-4 bg-green-900/80 px-3 py-1 rounded text-green-300 text-xs font-mono flex items-center gap-2 border border-green-700">
-                                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                                CAMERA ACTIVE
+
+                            {/* Status Indicators */}
+                            <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                {isModelLoading ? (
+                                    <div className="bg-yellow-900/80 px-3 py-1 rounded text-yellow-300 text-xs font-mono flex items-center gap-2 border border-yellow-700">
+                                        <RefreshCw className="animate-spin" size={12} />
+                                        LOADING MODEL...
+                                    </div>
+                                ) : (
+                                    <div className="bg-green-900/80 px-3 py-1 rounded text-green-300 text-xs font-mono flex items-center gap-2 border border-green-700">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                        VISION ACTIVE
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

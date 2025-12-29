@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 
+import { useState, useEffect, useCallback, useRef } from 'react';
+
 export const useSpeechRecognition = () => {
     const [transcript, setTranscript] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [error, setError] = useState(null);
-    const [recognition, setRecognition] = useState(null);
-
-    const [isContinuous, setIsContinuous] = useState(false);
+    const recognitionRef = useRef(null);
+    const isContinuousRef = useRef(false);
 
     useEffect(() => {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -17,7 +18,7 @@ export const useSpeechRecognition = () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognitionInstance = new SpeechRecognition();
 
-        recognitionInstance.continuous = false; // We handle continuity manually for better control
+        recognitionInstance.continuous = false; // We handle continuity manually
         recognitionInstance.interimResults = true;
         recognitionInstance.lang = 'en-US';
 
@@ -25,12 +26,12 @@ export const useSpeechRecognition = () => {
 
         recognitionInstance.onend = () => {
             setIsListening(false);
-            // Auto-restart if continuous mode is enabled
-            if (isContinuous) {
+            // Check ref to see if we should restart
+            if (isContinuousRef.current) {
                 try {
                     recognitionInstance.start();
                 } catch (e) {
-                    // console.log("Restart debounce");
+                    // ignore
                 }
             }
         };
@@ -43,39 +44,44 @@ export const useSpeechRecognition = () => {
         };
 
         recognitionInstance.onerror = (event) => {
-            console.error("Speech Recognition Error:", event.error);
-            if (event.error === 'no-speech') {
-                // Ignore no-speech errors in continuous mode
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                // Ignore these common non-critical errors
                 return;
             }
+            console.error("Speech Recognition Error:", event.error);
             setError(`Error: ${event.error}`);
             setIsListening(false);
         };
 
-        setRecognition(recognitionInstance);
+        recognitionRef.current = recognitionInstance;
 
         return () => {
             recognitionInstance.stop();
+            recognitionRef.current = null;
         };
-    }, [isContinuous]);
+    }, []);
 
     const startListening = useCallback((continuous = false) => {
         setTranscript('');
         setError(null);
-        setIsContinuous(continuous);
-        if (recognition) {
+        isContinuousRef.current = continuous;
+
+        if (recognitionRef.current) {
             try {
-                recognition.start();
+                // simple check to avoid error if already started
+                recognitionRef.current.start();
             } catch (e) {
-                // console.error("Started too fast", e);
+                // ignore if already started
             }
         }
-    }, [recognition]);
+    }, []);
 
     const stopListening = useCallback(() => {
-        setIsContinuous(false); // Kill the auto-restart loop
-        if (recognition) recognition.stop();
-    }, [recognition]);
+        isContinuousRef.current = false; // Kill the auto-restart loop
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+    }, []);
 
     const resetTranscript = useCallback(() => {
         setTranscript('');
@@ -88,6 +94,6 @@ export const useSpeechRecognition = () => {
         error,
         startListening,
         stopListening,
-        hasSupport: !!recognition
+        hasSupport: !!recognitionRef.current || ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window)
     };
 };
