@@ -16,6 +16,17 @@ const DeafMode = () => {
     const [predictedSentence, setPredictedSentence] = useState("");
     const [isTranslating, setIsTranslating] = useState(false);
     const [translationError, setTranslationError] = useState(null);
+    const [inputMode, setInputMode] = useState('VOICE'); // 'VOICE' or 'TEXT'
+    const [textInput, setTextInput] = useState("");
+    const [signOutput, setSignOutput] = useState([]);
+
+    const handleTextToSign = () => {
+        if (!textInput.trim()) return;
+        // Simple splitter: split by space to get words
+        const words = textInput.trim().split(/\s+/);
+        setSignOutput(words);
+        setTextInput("");
+    };
     // webcamRef moved up
 
     useEffect(() => {
@@ -128,30 +139,82 @@ const DeafMode = () => {
                                 <Volume2 size={24} />
                                 Hearing Person Says:
                             </h2>
-                            {hasSTT ? (
+                            <div className="flex gap-2">
                                 <button
-                                    onClick={isListening ? stopListening : startListening}
-                                    className={`
-                                        flex items-center gap-2 px-6 py-2 rounded-full font-bold transition-all
-                                        ${isListening
-                                            ? 'bg-red-500 hover:bg-red-600 animate-pulse text-white shadow-red-500/50 shadow-lg'
-                                            : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg'}
-                                    `}
+                                    onClick={() => setInputMode(m => m === 'VOICE' ? 'TEXT' : 'VOICE')}
+                                    className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition"
                                 >
-                                    {isListening ? <><MicOff size={18} /> STOP LISTENING</> : <><Mic size={18} /> LISTEN TO REPLY</>}
+                                    {inputMode === 'VOICE' ? 'Switch to Keyboard ⌨️' : 'Switch to Voice 🎤'}
                                 </button>
-                            ) : (
-                                <span className="text-red-400 text-xs border border-red-500/50 px-2 py-1 rounded">STT Not Supported</span>
-                            )}
+                                {inputMode === 'VOICE' && hasSTT && (
+                                    <button
+                                        onClick={isListening ? stopListening : startListening}
+                                        className={`
+                                            flex items-center gap-2 px-4 py-1 rounded-full font-bold transition-all text-sm
+                                            ${isListening
+                                                ? 'bg-red-500 hover:bg-red-600 animate-pulse text-white'
+                                                : 'bg-indigo-600 hover:bg-indigo-500 text-white'}
+                                        `}
+                                    >
+                                        {isListening ? <><MicOff size={14} /> STOP</> : <><Mic size={14} /> LISTEN</>}
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="flex-1 bg-black/40 rounded-xl p-6 border-2 border-indigo-500/20 overflow-y-auto min-h-[150px] flex items-center justify-center text-center">
-                            {isListening && !transcript ? (
-                                <span className="text-indigo-400 animate-pulse text-xl">Listening...</span>
-                            ) : transcript ? (
-                                <p className="text-3xl font-bold text-white leading-snug">{transcript}</p>
+                        <div className="flex-1 bg-black/40 rounded-xl p-6 border-2 border-indigo-500/20 overflow-y-auto min-h-[150px] flex flex-col justify-center">
+                            {inputMode === 'VOICE' ? (
+                                <div className="text-center">
+                                    {isListening && !transcript ? (
+                                        <span className="text-indigo-400 animate-pulse text-xl">Listening...</span>
+                                    ) : transcript ? (
+                                        <p className="text-3xl font-bold text-white leading-snug">{transcript}</p>
+                                    ) : (
+                                        <p className="text-gray-500 text-lg">Tap "Listen" to capture speech.</p>
+                                    )}
+                                </div>
                             ) : (
-                                <p className="text-gray-500 text-lg">Tap "Listen" to capture speech from hearing person.</p>
+                                <div className="w-full h-full flex flex-col gap-4">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={textInput}
+                                            onChange={(e) => setTextInput(e.target.value)}
+                                            placeholder="Type message to convert to Sign Language..."
+                                            className="flex-1 bg-gray-700 border-gray-600 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleTextToSign();
+                                            }}
+                                        />
+                                        <button
+                                            onClick={handleTextToSign}
+                                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold"
+                                        >
+                                            Translate
+                                        </button>
+                                    </div>
+
+                                    {/* Sign Language Output Area */}
+                                    {signOutput.length > 0 && (
+                                        <div className="flex-1 bg-indigo-900/30 rounded-lg p-2 border border-indigo-500/30 overflow-x-auto whitespace-nowrap">
+                                            <p className="text-xs text-indigo-300 uppercase mb-2 font-bold">Sign Translation:</p>
+                                            <div className="flex gap-2 pb-2">
+                                                {signOutput.map((word, i) => (
+                                                    <div key={i} className="flex flex-col items-center">
+                                                        {/* Placeholder for Sign Image - utilizing a gradient for now as 'Avatar' */}
+                                                        <div className="w-24 h-24 bg-gradient-to-t from-gray-200 to-gray-100 rounded-lg border-2 border-indigo-400 flex items-center justify-center shadow-lg relative overflow-hidden group">
+                                                            <span className="text-4xl select-none group-hover:scale-110 transition">👋</span>
+                                                            <div className="absolute bottom-0 w-full bg-indigo-600 text-white text-[10px] text-center py-1">
+                                                                SIGNS "{word.toUpperCase()}"
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-xs mt-1 text-gray-300 font-mono">{word}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
