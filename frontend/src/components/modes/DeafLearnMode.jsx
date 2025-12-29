@@ -17,6 +17,16 @@ const CURRICULUM = [
             { id: 'l5', target: 'PEACE', label: 'Peace / Victory', hint: "Show the peace sign (V)." },
             { id: 'l6', target: 'STOP', label: 'Stop / Fist', hint: "Show a closed fist." },
         ]
+    },
+    {
+        id: 'numbers',
+        title: 'Numbers & Expressions',
+        description: 'Count and express feelings.',
+        lessons: [
+            { id: 'n1', target: 'ONE', label: 'Number One', hint: "Point your index finger up." },
+            { id: 'n2', target: 'PEACE', label: 'Two / Peace', hint: "Show the peace sign (V)." },
+            { id: 'n3', target: 'I LOVE YOU', label: 'I Love You', hint: "Thumb, Index, Pinky up." },
+        ]
     }
 ];
 
@@ -29,8 +39,11 @@ const DeafLearnMode = () => {
     const [feedback, setFeedback] = useState("Waiting for gesture...");
     const [score, setScore] = useState(0);
 
-    const currentLesson = CURRICULUM[0].lessons[currentLessonIndex];
-    const isFinished = currentLessonIndex >= CURRICULUM[0].lessons.length;
+    // Flatten all lessons for linear progression
+    const allLessons = CURRICULUM.flatMap(module => module.lessons);
+
+    const currentLesson = allLessons[currentLessonIndex];
+    const isFinished = currentLessonIndex >= allLessons.length;
 
     useEffect(() => {
         if (!isLessonComplete && !isFinished && tokens.length > 0) {
@@ -50,7 +63,7 @@ const DeafLearnMode = () => {
         // audio.play().catch(e => console.log("No audio")); 
 
         setTimeout(() => {
-            if (currentLessonIndex < CURRICULUM[0].lessons.length - 1) {
+            if (currentLessonIndex < allLessons.length - 1) {
                 setCurrentLessonIndex(prev => prev + 1);
                 setIsLessonComplete(false);
                 setFeedback("Waiting for gesture...");

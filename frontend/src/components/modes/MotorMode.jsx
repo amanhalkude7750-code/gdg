@@ -13,6 +13,10 @@ const MotorMode = () => {
     const [pendingAction, setPendingAction] = useState(null); // { type: 'NEXT', label: 'Go to Next Section?' }
     const [hudState, setHudState] = useState({ command: "WAITING...", gesture: "--", action: "--" });
 
+    // DWELL CLICK STATE
+    const [dwellProgress, setDwellProgress] = useState(0);
+    const lastHoveredEl = useRef(null);
+
     const speak = (text) => {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel(); // Stop previous
@@ -21,6 +25,84 @@ const MotorMode = () => {
             window.speechSynthesis.speak(utterance);
         }
     };
+
+    // DWELL LOOP
+    useEffect(() => {
+        if (!isTracking) {
+            setDwellProgress(0);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            // 1. Get Element at Cursor
+            const clickX = (cursor.x / 100) * window.innerWidth;
+            const clickY = (cursor.y / 100) * window.innerHeight;
+
+            // Standardize: Hide cursor temporarily to get element UNDER it, or use elementFromPoint directly if pointer-events:none is set on cursor
+            // (Our cursor div has pointer-events-none, so it's fine)
+            const el = document.elementFromPoint(clickX, clickY);
+
+            // 2. Check Interactive
+            // Heuristic: Is it a button, link, input, or has onClick/role
+            const isInteractive = el && (
+                el.tagName === 'BUTTON' ||
+                el.tagName === 'A' ||
+                el.tagName === 'INPUT' ||
+                el.tagName === 'TEXTAREA' ||
+                el.onclick != null ||
+                window.getComputedStyle(el).cursor === 'pointer'
+            );
+
+            if (isInteractive) {
+                if (el === lastHoveredEl.current) {
+                    // Still hovering same element -> Increment
+                    setDwellProgress(prev => {
+                        if (prev >= 100) {
+                            // TRIGGER CLICK
+                            el.click();
+                            el.focus();
+                            speak("Clicked.");
+                            setHudState(s => ({ ...s, action: "DWELL CLICK" }));
+
+                            // Visual Ripple
+                            const ripple = document.createElement("div");
+                            ripple.style.position = "fixed";
+                            ripple.style.left = `${clickX}px`;
+                            ripple.style.top = `${clickY}px`;
+                            ripple.style.width = "20px";
+                            ripple.style.height = "20px";
+                            ripple.style.background = "rgba(255, 0, 0, 0.8)";
+                            ripple.style.borderRadius = "50%";
+                            ripple.style.transform = "translate(-50%, -50%) scale(1)";
+                            ripple.style.transition = "transform 0.3s, opacity 0.3s";
+                            ripple.style.zIndex = "9999";
+                            document.body.appendChild(ripple);
+                            setTimeout(() => {
+                                ripple.style.transform = "translate(-50%, -50%) scale(5)";
+                                ripple.style.opacity = "0";
+                            }, 10);
+                            setTimeout(() => document.body.removeChild(ripple), 350);
+
+                            lastHoveredEl.current = null; // Reset to prevent double click immediately
+                            return 0;
+                        }
+                        return prev + 5; // Fill in ~1 second (20 * 50ms)
+                    });
+                } else {
+                    // New element
+                    lastHoveredEl.current = el;
+                    setDwellProgress(0);
+                }
+            } else {
+                // Not interactive
+                lastHoveredEl.current = null;
+                setDwellProgress(0);
+            }
+        }, 50);
+
+        return () => clearInterval(interval);
+    }, [isTracking, cursor]);
+
 
     // COMMAND PARSER
     useEffect(() => {
@@ -278,8 +360,22 @@ const MotorMode = () => {
                 style={{ left: `${cursor.x}%`, top: `${cursor.y}%` }}
             >
                 <div className="relative">
-                    <Crosshair size={48} className="text-cyan-400 stroke-[1.5]" />
+                    {/* Dwell Progress Ring */}
+                    <svg className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 -rotate-90">
+                        <circle
+                            cx="40" cy="40" r="36"
+                            fill="transparent"
+                            stroke="#00bcd4"
+                            strokeWidth="4"
+                            strokeDasharray="226"
+                            strokeDashoffset={226 - (226 * dwellProgress) / 100}
+                            className="transition-all duration-75 ease-linear opacity-80"
+                        />
+                    </svg>
+
+                    <Crosshair size={48} className={`transition-colors duration-300 ${dwellProgress > 0 ? 'text-red-400 stroke-2' : 'text-cyan-400 stroke-[1.5]'}`} />
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-red-500 rounded-full shadow-[0_0_10px_2px_rgba(255,0,0,0.8)]"></div>
+
                     {/* Radial Guides */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 border border-cyan-500/30 rounded-full animate-ping"></div>
                 </div>
